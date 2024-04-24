@@ -82,8 +82,6 @@ def send_to_whisper(audio: str) -> Transcription:
 
 def _summarize(content:str, by_:Literal["gemini",]='gemini'):
     data = {"contents": get_gemini_request_data(content)}
-    with open('data.json', 'w', encoding='utf-8') as f:
-        json.dump(data, f)
     if by_ == "gemini":
         req = urllib.request.Request(
                 url=get_gemini_url(),
@@ -100,8 +98,8 @@ def _summarize(content:str, by_:Literal["gemini",]='gemini'):
     except urllib.error.HTTPError as e:
         error = json.loads(e.read().decode('utf-8'))
         raise ConnectionError((
-            f'- HTTPError: {e.code}\n'
-            '- detail: '+ error["error"]["message"]))
+            f'HTTPError: {e.code}'
+            ', detail: '+ error["error"]["message"]))
     except Exception as e:
         print(e)
 
@@ -142,44 +140,50 @@ def make_transcription():
     if not output:
         output = f"{os.path.basename(fp)}_{now}.txt"
 
-    print(
-        f"You are using OPEN AI API: {OPENAI_API_KEY[:10]}*****************",
-    )
     audio_files = []
     tmp_audio_dir = "./.tmp_audio"
-    if librosa.get_duration(path=fp) > 600.0:
-        audio_files = split_audio(fp, output_dir=tmp_audio_dir)
-    else:
-        audio_files.append(os.path.realpath(fp))
+    base_fp, origin_ext = os.path.splitext(os.path.basename(fp))
+    is_text_file:bool = origin_ext.lower() in ('.txt', '.md')
+    if not is_text_file:
+        print(
+            f"You are using OPEN AI API: {OPENAI_API_KEY[:10]}*****************",
+        )
+        if librosa.get_duration(path=fp) > 600.0:
+            audio_files = split_audio(fp, output_dir=tmp_audio_dir)
+        else:
+            audio_files.append(os.path.realpath(fp))
 
-    transcription_list = []
-    tmp_dir = f".tmp_transcriptions_{now}"
-    os.makedirs(tmp_dir)
-    print("Sending to OpenAI Whisper-1...")
-    for i, a in enumerate(tqdm.tqdm(audio_files)):
-        if librosa.get_duration(path=a) < 10:
-            continue
-        transcription = send_to_whisper(a)
-        tmp_transcription_fn = os.path.join(tmp_dir, f".{i}.txt")
-        with open(tmp_transcription_fn, "w") as f:
-            f.write(textwrap.fill(transcription.text))
-        transcription_list.append(tmp_transcription_fn)
+        transcription_list = []
+        tmp_dir = f".tmp_transcriptions_{now}"
+        os.makedirs(tmp_dir)
+        print("Sending to OpenAI Whisper-1...")
+        for i, a in enumerate(tqdm.tqdm(audio_files)):
+            if librosa.get_duration(path=a) < 10:
+                continue
+            transcription = send_to_whisper(a)
+            tmp_transcription_fn = os.path.join(tmp_dir, f".{i}.txt")
+            with open(tmp_transcription_fn, "w") as f:
+                f.write(textwrap.fill(transcription.text))
+            transcription_list.append(tmp_transcription_fn)
 
-    full_text = ""
-    for t in transcription_list:
-        with open(t, "r") as f:
-            full_text += f.read() + "\n"
+        full_text = ""
+        for t in transcription_list:
+            with open(t, "r") as f:
+                full_text += f.read() + "\n"
 
-    with open(output, "w", encoding="utf8") as f:
-        f.write(full_text)
+        with open(output, "w", encoding="utf8") as f:
+            f.write(full_text)
 
-    shutil.rmtree(tmp_dir)
-    shutil.rmtree(tmp_audio_dir)
-    print(f'✅ Transcription finished: {output}')
+        shutil.rmtree(tmp_dir)
+        shutil.rmtree(tmp_audio_dir)
+        print(f'✅ Transcription finished: {output}')
 
     if summarize:
+        if is_text_file:
+            with open(fp, 'r') as f:
+                full_text = f.read()
         try:
-            print("Start to summarize with Gemini...")
+            print("👉 Start to summarize with Gemini...")
             res = _summarize(full_text)
             summary_md = (
                 json.loads(res)
@@ -197,4 +201,11 @@ def make_transcription():
             else: 
                 raise GeminiSummarizedFailed("Sorry...summary seems failed....")
         except Exception as e:
-            print(e)
+            print("🟥",e)
+        finally:
+            return
+    else:
+        print((
+            f"🟡 \"{os.path.basename(fp)}\" is a text file. "
+            "Set `--summary true` if you need a summary"
+        ))
