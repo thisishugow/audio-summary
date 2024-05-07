@@ -37,6 +37,6 @@ python -m audio_summary -f meeting-recording.wav -s true
 * `-h`, `--help`: Show help message and exit.  
 * `-f` FILE, `--file` FILE: Specify the path of the audio file.  
 * `-o`OUTPUT, `--output` OUTPUT: Specify the path of the output transcription.  
-* `-s` SUMMARIZE, `--summarize` SUMMARIZE: Specify whether to use Gemini for summarization (`true/false`).   
-
+* `-s` SUMMARIZE, `--summarize` SUMMARIZE: Specify whether to use Gemini for summarization (`true/false`). Default=`true`.  
+* `--lang` LANG let AI response in ["original", "en", "zh-tw"]. Default=`"original"`
 Then you will see the full transcription and the meeting minutes. 
