@@ -19,7 +19,7 @@ def get_gemini_url(model:str="gemini-pro", task:str="generateContent")->str:
     return (f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{task}?key={GOOGLE_API_KEY}")
 
 
-def get_gemini_request_data(content:str)->list:
+def get_gemini_request_data(content:str, resp_lang:str=prompts.ORIGINAL)->list:
     data:list = []
     data.append({
         "role":"user",
@@ -27,7 +27,7 @@ def get_gemini_request_data(content:str)->list:
             {
                 "text":(
                     f"Role Description: {prompts.MEETING_MINUTES_SECRETARY }"
-                    f"Response Mode: {prompts.RESPONSE_IN_MARKDOWN}"
+                    f"Response Mode: {resp_lang}"
                     f"Response Language: Original language of the transcription."
                     "Please make the meeting minutes for me. Here is the meeting transcription:\n" + content)
             }
