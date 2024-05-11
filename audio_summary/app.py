@@ -141,7 +141,11 @@ async def adump_transcription(
     print("👉 Sending to OpenAI Whisper-1...")
     tasks = []
     for i, a in enumerate(audio_files):
-        if librosa.get_duration(path=a) < 10:
+        if librosa.get_duration(path=a) < 5:
+            print((
+                f"⚠️ WARNING: '{a}' "
+                "less then 5 seconds. File skipped. "
+            ))
             continue
         tasks.append(asyncio.create_task(
             async_send_to_whisper(a, tmp_dir, i)
@@ -192,9 +196,6 @@ async def main():
         OpenaiApiKeyNotFound: Raised if OPENAI_API_KEY is not found in environmental variables.
         GeminiApiKeyNotFound: Raised if GOOGLE_API_KEY is not found in environmental variables.
     """
-    if "OPENAI_API_KEY" not in os.environ.keys():
-        raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
-    
     now = time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
     parser = argparse.ArgumentParser(
         description="Upload an audio file and make it transcription by OpenAI-Whisper"
@@ -223,13 +224,17 @@ async def main():
         required=False,
         type=str,
         default="original",
-        help="""["original", "en", "zh-tw"]""",
+        help="""The lang to response""",
+        choices=["original", "en", "zh-tw"],
     )
     args = parser.parse_args()
     fp: str = args.file
     output: str = args.output
     summarize:bool = args.summarize 
     lang_:str = lang_map[args.lang.replace('_', '-').lower()]
+
+    if "OPENAI_API_KEY" not in os.environ.keys():
+        raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
 
     if summarize and ("GOOGLE_API_KEY" not in os.environ.keys()):
         raise GeminiApiKeyNotFound("GOOGLE_API_KEY not found in environmental variables.")
