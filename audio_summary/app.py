@@ -1,29 +1,25 @@
 import argparse
-import http.client
 import os
+import sys
 import time
 from string import Template
 import math
 import textwrap
 import shutil
 from typing import Literal
-import urllib
-import urllib.parse
-import urllib.request
-import json
 import asyncio
 
-import tqdm
 import librosa
-
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI
 from openai.types.audio import Transcription
+import google.generativeai as genai
 
 from audio_summary.exceptions import GeminiSummarizedFailed, OpenaiApiKeyNotFound
 from audio_summary.api_utils import *
 import audio_summary.prompts.lang as lang
 
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", '')
+__WHISPER_CONTENT_LIMIT_IN_BYTES:int = 26214400
 
 lang_map:dict[str, str] = {
     "original": lang.ORIGINAL,
@@ -110,6 +106,16 @@ async def async_send_to_whisper(
     """
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
     audio_file = open(audio, "rb")
+    carry_on = "N"
+    audio_size = os.path.getsize(audio)
+    if audio_size>__WHISPER_CONTENT_LIMIT_IN_BYTES:
+        print(f"🟡 Maximum content size limit of OpenAI Whisper ({__WHISPER_CONTENT_LIMIT_IN_BYTES} bytes) exceeded (\"{audio}\"={audio_size} bytes read)")
+        carry_on = input("Do you want to continue?(y/N)")
+    else:
+        carry_on = 'y'
+
+    if carry_on.lower().strip() not in ['y', 'yes']:
+        raise InterruptedError(f"Process is interrupted manually due to file size exceeding. (\"{audio}\"={audio_size} bytes read)")
     transcription: Transcription = await client.audio.transcriptions.create(
         model="whisper-1", file=audio_file
     )
@@ -151,6 +157,10 @@ async def adump_transcription(
             async_send_to_whisper(a, tmp_dir, i)
         ))
     transcription_list = await asyncio.gather(*tasks,return_exceptions=True)
+    if True in (issubclass(t.__class__, Exception) for t in transcription_list):
+        print(*transcription_list, sep='\n')
+        shutil.rmtree(tmp_dir)
+        return []
     return transcription_list
 
 
@@ -166,27 +176,15 @@ def _summarize(*, content:str, by_:Literal["gemini",]='gemini', resp_lang:str):
     Returns:
         str: Summary of the input content.
     """
-    data = {"contents": get_gemini_request_data(content, resp_lang=resp_lang)}
-    if by_ == "gemini":
-        req = urllib.request.Request(
-                url=get_gemini_url(),
-                data=json.dumps(data).encode('utf-8'),
-                method="POST",
-                headers={
-                    'Content-Type': 'application/json'
-                }
-            )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            res = resp.read().decode('utf-8')
-            return res
-    except urllib.error.HTTPError as e:
-        error = json.loads(e.read().decode('utf-8'))
-        raise ConnectionError((
-            f'HTTPError: {e.code}'
-            ', detail: '+ error["error"]["message"]))
+    try: 
+        model = genai.GenerativeModel(model_name="gemini-1.5-pro",
+                              generation_config=get_gemini_default_config(),
+                              safety_settings=get_gemini_default_safety_setting())
+        prompt_parts = get_prompt_parts(content, resp_lang)
+        response = model.generate_content(prompt_parts)
+        return response.text
     except Exception as e:
-        print(e)
+        raise e
 
 async def main():
     """
@@ -227,10 +225,19 @@ async def main():
         help="""The lang to response""",
         choices=["original", "en", "zh-tw"],
     )
+
+    parser.add_argument(
+        "--duration",
+        required=False,
+        type=int,
+        default=600,
+        help="""Length of split audio in seconds.""",
+    )
     args = parser.parse_args()
     fp: str = args.file
     output: str = args.output
     summarize:bool = args.summarize 
+    duration:int = args.duration 
     lang_:str = lang_map[args.lang.replace('_', '-').lower()]
 
     if "OPENAI_API_KEY" not in os.environ.keys():
@@ -250,24 +257,30 @@ async def main():
         print(
             f"You are using OPEN AI API: {OPENAI_API_KEY[:10]}*****************",
         )
-        if librosa.get_duration(path=fp) > 600.0:
-            audio_files = split_audio(fp, output_dir=tmp_audio_dir)
+        if librosa.get_duration(path=fp) > duration:
+            audio_files = split_audio(fp, duration=duration, output_dir=tmp_audio_dir)
         else:
             audio_files.append(os.path.realpath(fp))
 
         transcription_list = await adump_transcription(audio_files, now)
-        print(transcription_list)
+        shutil.rmtree(tmp_audio_dir)
+
         full_text = ""
         for t in transcription_list:
+            print(transcription_list)
             with open(t, "r") as f:
                 full_text += f.read() + "\n"
+        if full_text:
+            with open(output, "w", encoding="utf8") as f:
+                f.write(full_text)
+            print(f'✅ Transcription finished: {output}')
+            shutil.rmtree(os.path.dirname(transcription_list[0]))
 
-        with open(output, "w", encoding="utf8") as f:
-            f.write(full_text)
-
-        shutil.rmtree(tmp_audio_dir)
-        shutil.rmtree(os.path.dirname(transcription_list[0]))
-        print(f'✅ Transcription finished: {output}')
+        else:
+            _msg = "❗️Interrupted by errors."
+            print('\x1b[33;20m' + _msg + '\x1b[0m')
+            sys.exit(1)
+        
 
     if summarize:
         if is_text_file:
@@ -275,19 +288,12 @@ async def main():
                 full_text = f.read()
         try:
             print("👉 Start to summarize with Gemini...")
-            res = _summarize(content=full_text, resp_lang=lang_)
-            summary_md = (
-                json.loads(res)
-                .get("candidates", [])[0]
-                .get('content', {})
-                .get('parts', [])[0]
-                .get('text', None)
-            )
+            res_text = _summarize(content=full_text, resp_lang=lang_)
             fn, _ = os.path.splitext(os.path.basename(fp))
-            if summary_md:
+            if res_text:
                 _output_f = f"meeting-minutes_{fn}_{now}.md"
                 with open(_output_f, 'w') as f:
-                    f.write(summary_md)
+                    f.write(res_text)
                 print(f'✅ Summary finished: {_output_f}')
             else: 
                 raise GeminiSummarizedFailed("Sorry...summary seems failed....")

@@ -1,4 +1,5 @@
 import os
+import typing_extensions
 
 from audio_summary.exceptions import GeminiApiKeyNotFound
 from audio_summary import prompts 
@@ -12,13 +13,13 @@ curl https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generate
         "parts":[{
           "text": "Write a story about a magic backpack."}]}]}' 2> /dev/null
 """
-
+@typing_extensions.deprecated('The get_gemini_request_data method is deprecated; use google.generativeai instead.', category=None)
 def get_gemini_url(model:str="gemini-pro", task:str="generateContent")->str:
     if GOOGLE_API_KEY is None:
         raise GeminiApiKeyNotFound("GOOGLE_API_KEY is not found in environmental variables.")
     return (f"https://generativelanguage.googleapis.com/v1beta/models/{model}:{task}?key={GOOGLE_API_KEY}")
 
-
+@typing_extensions.deprecated('The get_gemini_request_data method is deprecated; use get_prompt_parts instead.', category=None)
 def get_gemini_request_data(content:str, resp_lang:str=prompts.ORIGINAL)->list:
     data:list = []
     data.append({
@@ -28,9 +29,45 @@ def get_gemini_request_data(content:str, resp_lang:str=prompts.ORIGINAL)->list:
                 "text":(
                     f"Role Description: {prompts.MEETING_MINUTES_SECRETARY }"
                     f"Response Mode: {resp_lang}"
-                    f"Response Language: Original language of the transcription."
                     "Please make the meeting minutes for me. Here is the meeting transcription:\n" + content)
             }
         ]
     })
     return data
+
+
+def get_prompt_parts(content:str, resp_lang:str=prompts.ORIGINAL)->list[str]:
+    return [
+        (f"- Role Description: {prompts.MEETING_MINUTES_SECRETARY } \n"
+        f"- Response Mode: {resp_lang} \n"
+        "Please make the meeting minutes for me. Here is the meeting transcription:\n" + content),
+    ]
+
+
+def get_gemini_default_config()->dict[str, float]:
+    return {
+        "temperature": 0.9,
+        "top_p": 0.95,
+        "top_k": 32,
+        "max_output_tokens": 1024,
+    }
+
+def get_gemini_default_safety_setting()->list[dict[str, str]]:
+    return [
+        {
+            "category": "HARM_CATEGORY_HARASSMENT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+            "category": "HARM_CATEGORY_HATE_SPEECH",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        },
+    ]
