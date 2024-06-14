@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audio-summary"
-version = "0.1.4-rc1"
+version = "0.1.4"
 description = ""
 authors = ["thisishugow <59921505+thisishugow@users.noreply.github.com>"]
 readme = "README.md"
