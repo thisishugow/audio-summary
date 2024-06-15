@@ -186,60 +186,16 @@ def _summarize(*, content:str, by_:Literal["gemini",]='gemini', resp_lang:str):
     except Exception as e:
         raise e
 
-async def main():
-    """
-    Asynchronously perform audio transcription and optional summarization.
 
-    Raises:
-        OpenaiApiKeyNotFound: Raised if OPENAI_API_KEY is not found in environmental variables.
-        GeminiApiKeyNotFound: Raised if GOOGLE_API_KEY is not found in environmental variables.
-    """
+async def main(*,
+    fp:os.PathLike,
+    duration:int | float,
+    lang_:str,
+    output:os.PathLike,
+    summarize:bool, 
+):
     now = time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
-    parser = argparse.ArgumentParser(
-        description="Upload an audio file and make it transcription by OpenAI-Whisper"
-    )
-    parser.add_argument(
-        "-f", "--file", required=True, type=str, help="The path of the audio file."
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        required=False,
-        type=str,
-        help="The path of the output transcription.",
-    )
-    parser.add_argument(
-        "-s",
-        "--summarize",
-        required=False,
-        type=bool,
-        default=True,
-        help="If to use Gemini to summarize. Default=true",
-    )
-
-    parser.add_argument(
-        "--lang",
-        required=False,
-        type=str,
-        default="original",
-        help="""The lang to response""",
-        choices=["original", "en", "zh-tw"],
-    )
-
-    parser.add_argument(
-        "--duration",
-        required=False,
-        type=int,
-        default=600,
-        help="""Length of split audio in seconds.""",
-    )
-    args = parser.parse_args()
-    fp: str = args.file
-    output: str = args.output
-    summarize:bool = args.summarize 
-    duration:int = args.duration 
-    lang_:str = lang_map[args.lang.replace('_', '-').lower()]
-
+    
     if "OPENAI_API_KEY" not in os.environ.keys():
         raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
 
@@ -300,9 +256,77 @@ async def main():
         except Exception as e:
             print("🟥",e)
         finally:
-            return
+            print("All tasks done, exit.")
+            return full_text, res_text
+
+        
     else:
         print((
             f"🟡 \"{os.path.basename(fp)}\" is a text file. "
             "Set `--summary true` if you need a summary"
         ))
+        return full_text, ""
+
+
+
+
+async def run():
+    """
+    Asynchronously perform audio transcription and optional summarization.
+
+    Raises:
+        OpenaiApiKeyNotFound: Raised if OPENAI_API_KEY is not found in environmental variables.
+        GeminiApiKeyNotFound: Raised if GOOGLE_API_KEY is not found in environmental variables.
+    """
+    parser = argparse.ArgumentParser(
+        description="Upload an audio file and make it transcription by OpenAI-Whisper"
+    )
+    parser.add_argument(
+        "-f", "--file", required=True, type=str, help="The path of the audio file."
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=False,
+        type=str,
+        help="The path of the output transcription.",
+    )
+    parser.add_argument(
+        "-s",
+        "--summarize",
+        required=False,
+        type=bool,
+        default=True,
+        help="If to use Gemini to summarize. Default=true",
+    )
+
+    parser.add_argument(
+        "--lang",
+        required=False,
+        type=str,
+        default="original",
+        help="""The lang to response""",
+        choices=["original", "en", "zh-tw"],
+    )
+
+    parser.add_argument(
+        "--duration",
+        required=False,
+        type=int,
+        default=600,
+        help="""Length of split audio in seconds.""",
+    )
+    args = parser.parse_args()
+    fp: str = args.file
+    output: str = args.output
+    summarize:bool = args.summarize 
+    duration:int = args.duration 
+    lang_:str = lang_map[args.lang.replace('_', '-').lower()]
+
+    await main(
+        fp=fp,
+        output=output,
+        summarize=summarize,
+        duration=duration,
+        lang_=lang_
+    )
