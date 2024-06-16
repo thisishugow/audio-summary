@@ -18,7 +18,6 @@ from audio_summary.exceptions import GeminiSummarizedFailed, OpenaiApiKeyNotFoun
 from audio_summary.api_utils import *
 import audio_summary.prompts.lang as lang
 
-OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", '')
 __WHISPER_CONTENT_LIMIT_IN_BYTES:int = 26214400
 
 lang_map:dict[str, str] = {
@@ -104,7 +103,7 @@ async def async_send_to_whisper(
     Returns:
         Transcription: Transcription object containing the text transcription.
     """
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ''))
     audio_file = open(audio, "rb")
     carry_on = "N"
     audio_size = os.path.getsize(audio)
@@ -177,6 +176,7 @@ def _summarize(*, content:str, by_:Literal["gemini",]='gemini', resp_lang:str):
         str: Summary of the input content.
     """
     try: 
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         model = genai.GenerativeModel(model_name="gemini-1.5-pro",
                               generation_config=get_gemini_default_config(),
                               safety_settings=get_gemini_default_safety_setting())
@@ -195,6 +195,7 @@ async def main(*,
     summarize:bool, 
 ):
     now = time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
+    OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", '')
     
     if "OPENAI_API_KEY" not in os.environ.keys():
         raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
