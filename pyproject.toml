@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audio-summary"
-version = "0.1.4"
+version = "0.1.5-rc1"
 description = ""
 authors = ["thisishugow <59921505+thisishugow@users.noreply.github.com>"]
 readme = "README.md"
@@ -16,6 +16,7 @@ accelerate = "^0.29.3"
 librosa = "^0.10.1"
 tqdm = "^4.66.2"
 google-generativeai = "^0.5.4"
+streamlit = "^1.35.0"
 
 [build-system]
 requires = ["poetry-core"]
