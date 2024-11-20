@@ -12,7 +12,7 @@ def _upload_file():
     """Widget for uploading a file"""
     st.file_uploader(
         "Upload file", 
-        type=["txt", "md", "wav", "mp3", ],
+        type=["txt", "md", "wav", "mp3", "m4a"],
         accept_multiple_files=False,
         key="src_file", 
     )
@@ -77,8 +77,12 @@ def _dual_col():
     col1, col2 = st.columns(2)
     with col1:
         _output_lang()
+        _toggle_summarize()
+
     with col2:
         _duration()
+        st.toggle("Use local Whisper", value=False, key="local_transcription")
+
 
 def side_bar():
     """Sidebar for API configuration"""
@@ -128,7 +132,6 @@ async def run():
     with st.form("main_form"):
         _upload_file()
         _dual_col()
-        _toggle_summarize()
         if_submit = st.form_submit_button("Start",)
 
     if if_submit:
@@ -144,7 +147,8 @@ async def run():
                 duration=st.session_state.get("duration", 600),
                 lang_=st.session_state.get("lang", ("Original", "original"))[1], 
                 output=output_fn,
-                summarize=st.session_state.get("do_summarize", True)
+                summarize=st.session_state.get("do_summarize", True),
+                local_transcription=st.session_state.get("local_transcription", False)
             )
             st.session_state['transcript'] = transcript
             st.session_state['summary'] = summary

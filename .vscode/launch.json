@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run Audio Summary Server",
+        "type": "python",
+        "request": "launch",
+        "module": "audio_summary.server",
+        "justMyCode": true
+      }
+    ]
+  }
