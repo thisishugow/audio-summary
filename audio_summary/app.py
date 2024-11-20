@@ -17,6 +17,7 @@ import google.generativeai as genai
 from audio_summary.exceptions import GeminiSummarizedFailed, OpenaiApiKeyNotFound
 from audio_summary.api_utils import *
 import audio_summary.prompts.lang as lang
+from audio_summary.offline_app import speech_to_text
 
 __WHISPER_CONTENT_LIMIT_IN_BYTES:int = 26214400
 
@@ -193,6 +194,7 @@ async def main(*,
     lang_:str,
     output:os.PathLike,
     summarize:bool, 
+    local_transcription:bool=True,
 ):
     now = time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", '')
@@ -210,7 +212,7 @@ async def main(*,
     tmp_audio_dir = "./.tmp_audio"
     _, origin_ext = os.path.splitext(os.path.basename(fp))
     is_text_file:bool = origin_ext.lower() in ('.txt', '.md')
-    if not is_text_file:
+    if not is_text_file and not local_transcription:
         print(
             f"You are using OPEN AI API: {OPENAI_API_KEY[:10]}*****************",
         )
@@ -237,7 +239,20 @@ async def main(*,
             _msg = "❗️Interrupted by errors."
             print('\x1b[33;20m' + _msg + '\x1b[0m')
             sys.exit(1)
-        
+
+    if not is_text_file and local_transcription:
+        print("Use on-premise speech to text. ")
+        transcript = speech_to_text(audio_fn=fp)
+        if transcript:
+            with open(output, "w", encoding="utf8") as f:
+                f.write(transcript)
+            print(f'✅ Transcription finished: {output}')
+
+        else:
+            _msg = "❗️Interrupted by errors."
+            print('\x1b[33;20m' + _msg + '\x1b[0m')
+            sys.exit(1)
+
 
     if summarize:
         if is_text_file:
@@ -317,6 +332,12 @@ async def run():
         default=600,
         help="""Length of split audio in seconds.""",
     )
+    parser.add_argument(
+        "--local-transcription",
+        type=bool,
+        default=False, 
+        help="Whether to use local whisper from HF. Default=False."
+    )
     args = parser.parse_args()
     fp: str = args.file
     output: str = args.output
@@ -329,5 +350,6 @@ async def run():
         output=output,
         summarize=summarize,
         duration=duration,
-        lang_=lang_
+        lang_=lang_,
+        local_transcription=args.local_transcription
     )

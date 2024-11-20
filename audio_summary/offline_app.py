@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
@@ -11,19 +12,16 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 # os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 
-def app():
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+def speech_to_text(audio_fn:os.PathLike, model_name:Literal["openai/whisper-large-v3", "openai/whisper-medium"]="openai/whisper-medium")->str:
+    device = "cuda:0" if torch.cuda.is_available() else "mps"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    model_id = "openai/whisper-large-v3"
-    model_id = "openai/whisper-medium"
-
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
-        model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+        model_name, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
     )
     model.to(device)
 
-    processor = AutoProcessor.from_pretrained(model_id)
+    processor = AutoProcessor.from_pretrained(model_name)
 
     pipe = pipeline(
         "automatic-speech-recognition",
@@ -38,18 +36,6 @@ def app():
         device=device,
     )
 
-    # dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation")
-    audio_fp = ""
-    audio_fp = ""
+    result:dict = pipe(audio_fn)
+    return result.get('text', None)
 
-    result = pipe(audio_fp)
-    print(result)
-    with open('test.txt', 'w') as f:
-        f.write(result['text'])
-
-# sample.close()
-
-if __name__ == "__main__":
-    import dotenv
-    dotenv.load_dotenv()
-    app()
