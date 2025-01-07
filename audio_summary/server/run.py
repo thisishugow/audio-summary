@@ -12,7 +12,7 @@ def _upload_file():
     """Widget for uploading a file"""
     st.file_uploader(
         "Upload file", 
-        type=["txt", "md", "wav", "mp3", "m4a"],
+        type=["txt", "md", "wav", "mp3", "m4a", "mp4", "webm"],
         accept_multiple_files=False,
         key="src_file", 
     )
@@ -41,6 +41,15 @@ def _dump_audio(uploaded_file:UploadedFile)->str:
     output_fn = f"{rdm_name}@{uploaded_file.name}"
     with open(output_fn, "wb") as f:
         f.write(uploaded_file.getvalue())
+
+    _fn, ext = os.path.splitext(uploaded_file.name)
+    if ext.lower() in [".mp4", ".webm"]:
+        mp3_fn = f"{rdm_name}@{_fn}.mp3"
+        os.system(f"ffmpeg -i {repr(output_fn)} -vn -ab 192k -ar 44100 -f mp3 {repr(mp3_fn)}")
+        while not os.path.exists(mp3_fn):
+            time.sleep(0.1)
+        os.remove(output_fn)
+        return mp3_fn
     return output_fn
 
 def _output_lang():
