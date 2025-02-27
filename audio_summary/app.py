@@ -27,6 +27,24 @@ lang_map:dict[str, str] = {
     "en": lang.EN,
 }
 
+def convert_mov_to_mp4(input_file: str, output_file: str) -> str:
+    """
+    Convert a .mov file to .mp4 format using ffmpeg.
+
+    Args:
+        input_file (str): Path to the input .mov file.
+        output_file (str): Path to the output .mp4 file.
+
+    Returns:
+        str: Path to the converted .mp4 file.
+    """
+    ffmpeg_exec = "ffmpeg"
+    cmd = f"{ffmpeg_exec} -i \"{input_file}\" -c:v copy -c:a copy \"{output_file}\""
+    res = os.popen(cmd)
+    print(res.read())
+    res.close()
+    return output_file
+
 def split_audio(
     fn: str, duration: float = 600, output_dir: str = "./.tmp_audio"
 ) -> list[str]:
@@ -212,6 +230,11 @@ async def main(*,
     tmp_audio_dir = "./.tmp_audio"
     _, origin_ext = os.path.splitext(os.path.basename(fp))
     is_text_file:bool = origin_ext.lower() in ('.txt', '.md')
+
+    if origin_ext.lower() == '.mov':
+        mp4_fp = os.path.splitext(fp)[0] + '.mp4'
+        fp = convert_mov_to_mp4(fp, mp4_fp)
+
     if not is_text_file and not local_transcription:
         print(
             f"You are using OPEN AI API: {OPENAI_API_KEY[:10]}*****************",
