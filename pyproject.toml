@@ -17,6 +17,8 @@ librosa = "^0.10.1"
 tqdm = "^4.66.2"
 google-generativeai = "^0.5.4"
 streamlit = "^1.35.0"
+pypandoc-binary = "^1.15"
+pypandoc = "^1.15"
 
 [build-system]
 requires = ["poetry-core"]

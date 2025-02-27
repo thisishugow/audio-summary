@@ -2,3 +2,9 @@ test
 .env
 .venv
 __pycache__
+meeting-minutes*.md
+transcript_*.txt
+*.m4a
+*.mp4
+*.mov
+*.docx
