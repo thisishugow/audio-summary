@@ -6,13 +6,13 @@ import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from audio_summary.app import main
 from audio_summary.server import html
-
+import pypandoc
 
 def _upload_file():
     """Widget for uploading a file"""
     st.file_uploader(
         "Upload file", 
-        type=["txt", "md", "wav", "mp3", "m4a", "mp4", "webm"],
+        type=["txt", "md", "wav", "mp3", "m4a","mp4","mov","webm"],
         accept_multiple_files=False,
         key="src_file", 
     )
@@ -111,7 +111,6 @@ def side_bar():
             value=os.getenv("GOOGLE_API_KEY")
         )
 
-
 def _output_container():
     """Container for displaying and downloading the transcript and summary"""
     ready_transcript = st.session_state.get('transcript', '')
@@ -120,8 +119,15 @@ def _output_container():
     with st.container(border=True):
         tab_summary, tab_transcript  = st.tabs(["Summary", "Transcript", ])
         with tab_summary:
-            st.download_button("↓ Download", ready_summary, 'summary.md', disabled=len(ready_summary)==0)
+            col1, col2, _ = st.columns([1, 1, 2])
+            with col1:
+                st.download_button("↓ Download markdown", ready_summary, f"{st.session_state.get('src_file').name if st.session_state.get('src_file') else 'summary'}.md", disabled=len(ready_summary)==0)
+            with col2:
+                output_file = f"{st.session_state.get('src_file').name if st.session_state.get('src_file') else 'summary'}.docx"
+                pypandoc.convert_text(ready_summary, 'docx', format='md', outputfile=output_file)
+                st.download_button("↓ Download docx", open(output_file, "rb").read(), output_file, disabled=len(ready_summary)==0)
             st.markdown(ready_summary)
+            
 
         with tab_transcript:
             st.download_button("↓ Download", ready_transcript, 'transcript.txt', disabled=len(ready_transcript)==0)
