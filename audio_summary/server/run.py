@@ -12,7 +12,7 @@ def _upload_file():
     """Widget for uploading a file"""
     st.file_uploader(
         "Upload file", 
-        type=["txt", "md", "wav", "mp3", "m4a","mp4","mov"],
+        type=["txt", "md", "wav", "mp3", "m4a","mp4","mov", "webm"],
         accept_multiple_files=False,
         key="src_file", 
     )
