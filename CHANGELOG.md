@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated 
 
 
-## [0.1.6] 2024-11-21
+## [0.1.6] 2025-05-01
 ### Added
 - Docker support
 - Automatic file cleanup functionality (purger)
