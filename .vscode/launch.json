@@ -3,9 +3,21 @@
     "configurations": [
       {
         "name": "Run Audio Summary Server",
-        "type": "python",
+        "type": "debugpy",
         "request": "launch",
         "module": "audio_summary.server",
+        "justMyCode": true
+      },
+      {
+        "name": "Run Audio Summary Purger",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/audio_summary/purger/cli.py",
+        "args": [
+            "--file-dump",
+            "${workspaceFolder}/file_dump",
+            "--dry-run"
+        ],
         "justMyCode": true
       }
     ]

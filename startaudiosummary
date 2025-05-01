@@ -1,0 +1,6 @@
+#!/bin/bash
+
+PROJECT_DIR=~/Developments/python/audio-summary
+
+cd "$PROJECT_DIR" || exit
+poetry run audio_summary

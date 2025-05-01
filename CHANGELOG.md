@@ -17,7 +17,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated 
 
 
-## [0.1.4] -2024-06-14
+## [0.1.6] 2025-05-01
+### Added
+- Docker support
+- Automatic file cleanup functionality (purger)
+- Added startup scripts
+- Added schedule dependency
+
+### Changed
+- Removed unnecessary dependencies (transformers, datasets, accelerate, etc.)
+- Updated Poetry configuration, added script entry points
+
+### Fixed
+- Optimized log output in Docker environment
+
+## [0.1.5] 2024-11-20
+### Added
+- Offline APP (work w/ local Whisper)
+
+
+## [0.1.4] 2024-06-14
 
 ### Added
 - Add option `duration` to control the size of split audio. 
