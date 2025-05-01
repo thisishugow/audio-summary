@@ -24,3 +24,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 audio_summary = "audio_summary.server:main"
+audio_summary_purger = "audio_summary.purger.cli:main"

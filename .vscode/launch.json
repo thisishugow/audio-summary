@@ -7,6 +7,16 @@
         "request": "launch",
         "module": "audio_summary.server",
         "justMyCode": true
+      },
+      {
+        "name": "Run Audio Summary Purger",
+        "type": "python",
+        "request": "launch",
+        "module": "audio_summary.purger.cli",
+        "justMyCode": true,
+        "env": {
+            "APP_FILE_DUMP": "${workspaceFolder}/file_dump"
+        }
       }
     ]
   }
