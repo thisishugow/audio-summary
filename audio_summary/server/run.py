@@ -25,6 +25,16 @@ def _toggle_summarize():
         key="do_summarize"
     )
 
+def _get_dump_dir():
+    """Get and create file dump directory if not exists.
+    
+    Returns:
+        str: Path to the dump directory
+    """
+    dump_dir = os.getenv("APP_FILE_DUMP", "file_dump")
+    os.makedirs(dump_dir, exist_ok=True)
+    return dump_dir
+
 def _dump_audio(uploaded_file:UploadedFile)->str:
     """Dump the uploaded file and return the file path.
 
@@ -36,15 +46,18 @@ def _dump_audio(uploaded_file:UploadedFile)->str:
     """
     if uploaded_file is None:
         raise FileNotFoundError('Please select a file')
+    
+    # 獲取並創建檔案存放目錄
+    dump_dir = _get_dump_dir()
          
     rdm_name = str(uuid4())
-    output_fn = f"{rdm_name}@{uploaded_file.name}"
+    output_fn = os.path.join(dump_dir, f"{rdm_name}@{uploaded_file.name}")
     with open(output_fn, "wb") as f:
         f.write(uploaded_file.getvalue())
 
     _fn, ext = os.path.splitext(uploaded_file.name)
     if ext.lower() in [".mp4", ".webm"]:
-        mp3_fn = f"{rdm_name}@{_fn}.mp3"
+        mp3_fn = os.path.join(dump_dir, f"{rdm_name}@{_fn}.mp3")
         os.system(f"ffmpeg -i {repr(output_fn)} -vn -ab 192k -ar 44100 -f mp3 {repr(mp3_fn)}")
         while not os.path.exists(mp3_fn):
             time.sleep(0.1)
@@ -115,22 +128,35 @@ def _output_container():
     """Container for displaying and downloading the transcript and summary"""
     ready_transcript = st.session_state.get('transcript', '')
     ready_summary = st.session_state.get('summary', '')
+    dump_dir = _get_dump_dir()
 
     with st.container(border=True):
         tab_summary, tab_transcript  = st.tabs(["Summary", "Transcript", ])
         with tab_summary:
             col1, col2, _ = st.columns([1, 1, 2])
             with col1:
-                st.download_button("↓ Download markdown", ready_summary, f"{st.session_state.get('src_file').name if st.session_state.get('src_file') else 'summary'}.md", disabled=len(ready_summary)==0)
+                md_filename = f"{st.session_state.get('src_file').name if st.session_state.get('src_file') else 'summary'}.md"
+                md_path = os.path.join(dump_dir, md_filename)
+                # 寫入 md 檔案
+                with open(md_path, "w", encoding="utf-8") as f:
+                    f.write(ready_summary)
+                st.download_button("↓ Download markdown", ready_summary, md_filename, disabled=len(ready_summary)==0)
             with col2:
                 output_file = f"{st.session_state.get('src_file').name if st.session_state.get('src_file') else 'summary'}.docx"
-                pypandoc.convert_text(ready_summary, 'docx', format='md', outputfile=output_file)
-                st.download_button("↓ Download docx", open(output_file, "rb").read(), output_file, disabled=len(ready_summary)==0)
+                output_path = os.path.join(dump_dir, output_file)
+                pypandoc.convert_text(ready_summary, 'docx', format='md', outputfile=output_path)
+                st.download_button("↓ Download docx", open(output_path, "rb").read() if len(ready_summary) > 0 else b"", output_file, disabled=len(ready_summary)==0)
             st.markdown(ready_summary)
             
 
         with tab_transcript:
-            st.download_button("↓ Download", ready_transcript, 'transcript.txt', disabled=len(ready_transcript)==0)
+            txt_filename = 'transcript.txt'
+            txt_path = os.path.join(dump_dir, txt_filename)
+            # 寫入 txt 檔案
+            if len(ready_transcript) > 0:
+                with open(txt_path, "w", encoding="utf-8") as f:
+                    f.write(ready_transcript)
+            st.download_button("↓ Download", ready_transcript, txt_filename, disabled=len(ready_transcript)==0)
             st.markdown(ready_transcript)
 
 
@@ -154,7 +180,8 @@ async def run():
         os.environ["OPENAI_API_KEY"] = st.session_state.get("openai_api_key")
         src_file:UploadedFile = st.session_state.get("src_file")
         fn = _dump_audio(src_file)
-        output_fn = f"transcript_{src_file.name}.txt"
+        dump_dir = _get_dump_dir()
+        output_fn = os.path.join(dump_dir, f"transcript_{src_file.name}.txt")
         t0 = time.time()
         with st.spinner("work work ..."):
             transcript, summary = await main(
