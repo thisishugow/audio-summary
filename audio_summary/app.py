@@ -18,6 +18,7 @@ from audio_summary.exceptions import GeminiSummarizedFailed, OpenaiApiKeyNotFoun
 from audio_summary.api_utils import *
 import audio_summary.prompts.lang as lang
 from audio_summary.offline_app import speech_to_text
+from audio_summary.offline_app import speech_to_text
 
 __WHISPER_CONTENT_LIMIT_IN_BYTES:int = 26214400
 
