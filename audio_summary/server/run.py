@@ -100,6 +100,12 @@ def _dual_col():
     with col1:
         _output_lang()
         _toggle_summarize()
+        st.selectbox(
+            "Summarize by API",
+            options=["OpenAI", "Gemini"],
+            index=0,  # Default to OpenAI
+            key="summarize_by_api"
+        )
 
     with col2:
         _duration()
@@ -185,11 +191,12 @@ async def run():
         t0 = time.time()
         with st.spinner("work work ..."):
             transcript, summary = await main(
-                fp=fn, 
+                fp=fn,
                 duration=st.session_state.get("duration", 600),
-                lang_=st.session_state.get("lang", ("Original", "original"))[1], 
+                lang_=st.session_state.get("lang", ("Original", "original"))[1],
                 output=output_fn,
                 summarize=st.session_state.get("do_summarize", True),
+                summarize_by=st.session_state.get("summarize_by_api", "OpenAI").lower(), # Pass the selected API
                 local_transcription=st.session_state.get("local_transcription", False)
             )
             st.session_state['transcript'] = transcript
