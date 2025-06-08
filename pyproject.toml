@@ -17,10 +17,15 @@ streamlit = "^1.35.0"
 pypandoc-binary = "^1.15"
 pypandoc = "^1.15"
 schedule = "^1.2.2"
+schedule = "^1.2.2"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+audio_summary = "audio_summary.server:main"
+audio_summary_purger = "audio_summary.purger.cli:main"
 
 [tool.poetry.scripts]
 audio_summary = "audio_summary.server:main"
