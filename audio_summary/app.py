@@ -301,7 +301,7 @@ async def main(*,
             print('\x1b[33;20m' + _msg + '\x1b[0m')
             sys.exit(1)
 
-
+    res_text = ""
     if summarize:
         if is_text_file:
             with open(fp, 'r') as f:

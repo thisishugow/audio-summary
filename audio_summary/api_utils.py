@@ -84,7 +84,7 @@ def get_openai_prompt_parts(content: str, resp_lang: str) -> list[dict[str, str]
         list[dict[str, str]]: A list of message dictionaries for the OpenAI API.
     """
     return [
-        {"role": "system", "content": "You are a helpful assistant that summarizes text."},
+        {"role": "system", "content": f"You are a helpful assistant that summarizes text.\n Role Description:{prompts.MEETING_MINUTES_SECRETARY}"},
         {"role": "user", "content": f"Please summarize the following text in {resp_lang}:\n{content}"}
     ]
 
@@ -96,7 +96,7 @@ def get_openai_default_config() -> dict:
         dict: A dictionary containing default model, temperature, and max_tokens.
     """
     return {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4.1-mini",
         "temperature": 0.7,
         "max_tokens": 1024,
     }

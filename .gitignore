@@ -8,3 +8,4 @@ transcript_*.txt
 *.mp4
 *.mov
 *.docx
+file_dump/
