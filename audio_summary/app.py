@@ -181,7 +181,7 @@ async def adump_transcription(
     return transcription_list
 
 
-def _summarize(*, content:str, by_:Literal["gemini",]='gemini', resp_lang:str):
+async def _summarize(*, content:str, by_:Literal["gemini", "openai"]='gemini', resp_lang:str):
     """
     Summarize content using Gemini or OpenAI.
 
@@ -193,16 +193,38 @@ def _summarize(*, content:str, by_:Literal["gemini",]='gemini', resp_lang:str):
     Returns:
         str: Summary of the input content.
     """
-    try: 
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        model = genai.GenerativeModel(model_name="gemini-1.5-pro",
-                              generation_config=get_gemini_default_config(),
-                              safety_settings=get_gemini_default_safety_setting())
-        prompt_parts = get_prompt_parts(content, resp_lang)
-        response = model.generate_content(prompt_parts)
-        return response.text
-    except Exception as e:
-        raise e
+    if by_ == "gemini":
+        try:
+            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+            model = genai.GenerativeModel(model_name="gemini-1.5-pro",
+                                  generation_config=get_gemini_default_config(),
+                                  safety_settings=get_gemini_default_safety_setting())
+            prompt_parts = get_prompt_parts(content, resp_lang)
+            response = model.generate_content(prompt_parts)
+            return response.text
+        except Exception as e:
+            raise e
+    elif by_ == "openai":
+        try:
+            if "OPENAI_API_KEY" not in os.environ:
+                raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
+            client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
+            # This is an async function, but we are in a sync function.
+            # We need to run this in an event loop.
+            # However, the parent main() is already an async function,
+            # so we can make _summarize async as well.
+            client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
+            prompt_parts = get_openai_prompt_parts(content=content, resp_lang=resp_lang)
+            config = get_openai_default_config()
+            response = await client.chat.completions.create(
+                messages=prompt_parts,
+                **config
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise e
+    else:
+        raise ValueError(f"Unsupported summarization provider: {by_}")
 
 
 async def main(*,
@@ -210,7 +232,8 @@ async def main(*,
     duration:int | float,
     lang_:str,
     output:os.PathLike,
-    summarize:bool, 
+    summarize:bool,
+    summarize_by:Literal["gemini", "openai"]="openai",
     local_transcription:bool=True,
 ):
     now = time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
@@ -219,8 +242,11 @@ async def main(*,
     if "OPENAI_API_KEY" not in os.environ.keys():
         raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables.")
 
-    if summarize and ("GOOGLE_API_KEY" not in os.environ.keys()):
-        raise GeminiApiKeyNotFound("GOOGLE_API_KEY not found in environmental variables.")
+    if summarize:
+        if summarize_by == "gemini" and ("GOOGLE_API_KEY" not in os.environ.keys()):
+            raise GeminiApiKeyNotFound("GOOGLE_API_KEY not found in environmental variables.")
+        elif summarize_by == "openai" and ("OPENAI_API_KEY" not in os.environ.keys()):
+            raise OpenaiApiKeyNotFound("OPENAI_API_KEY not found in environmental variables for summarization.")
 
     if not output:
         output = f"{os.path.basename(fp)}_{now}.txt"
@@ -275,14 +301,14 @@ async def main(*,
             print('\x1b[33;20m' + _msg + '\x1b[0m')
             sys.exit(1)
 
-
+    res_text = ""
     if summarize:
         if is_text_file:
             with open(fp, 'r') as f:
                 full_text = f.read()
         try:
-            print("👉 Start to summarize with Gemini...")
-            res_text = _summarize(content=full_text, resp_lang=lang_)
+            print(f"👉 Start to summarize with {summarize_by.upper()}...")
+            res_text = await _summarize(content=full_text, by_=summarize_by, resp_lang=lang_)
             fn, _ = os.path.splitext(os.path.basename(fp))
             if res_text:
                 _output_f = f"meeting-minutes_{fn}_{now}.md"
@@ -346,7 +372,14 @@ async def run():
         help="""The lang to response""",
         choices=["original", "en", "zh-tw"],
     )
-
+    parser.add_argument(
+        "--summarize-by",
+        required=False,
+        type=str,
+        default="openai",
+        help="Summarization provider to use.",
+        choices=["gemini", "openai"],
+    )
     parser.add_argument(
         "--duration",
         required=False,
@@ -366,11 +399,13 @@ async def run():
     summarize:bool = args.summarize 
     duration:int = args.duration 
     lang_:str = lang_map[args.lang.replace('_', '-').lower()]
+    summarize_by:str = args.summarize_by
 
     await main(
         fp=fp,
         output=output,
         summarize=summarize,
+        summarize_by=summarize_by,
         duration=duration,
         lang_=lang_,
         local_transcription=args.local_transcription

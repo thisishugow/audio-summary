@@ -71,3 +71,32 @@ def get_gemini_default_safety_setting()->list[dict[str, str]]:
             "threshold": "BLOCK_MEDIUM_AND_ABOVE"
         },
     ]
+
+def get_openai_prompt_parts(content: str, resp_lang: str) -> list[dict[str, str]]:
+    """
+    Generates the prompt parts for OpenAI API.
+
+    Args:
+        content (str): The text content to be summarized.
+        resp_lang (str): The desired language for the response.
+
+    Returns:
+        list[dict[str, str]]: A list of message dictionaries for the OpenAI API.
+    """
+    return [
+        {"role": "system", "content": f"You are a helpful assistant that summarizes text.\n Role Description:{prompts.MEETING_MINUTES_SECRETARY}"},
+        {"role": "user", "content": f"Please summarize the following text in {resp_lang}:\n{content}"}
+    ]
+
+def get_openai_default_config() -> dict:
+    """
+    Returns the default configuration for the OpenAI API.
+
+    Returns:
+        dict: A dictionary containing default model, temperature, and max_tokens.
+    """
+    return {
+        "model": "gpt-4.1-mini",
+        "temperature": 0.7,
+        "max_tokens": 1024,
+    }
